@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  antares_broker_bot:
+    build: .
+    env_file:
+      - secrets.env # TELEGRAM_API_TOKEN, ANTARES_API_KEY, ANTARES_API_SECRET
+    restart: always
+
+  antares_broker_bot_sql:
+    image: postgres:13-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    networks:
+      - app
+    restart: always
+
+networks:
+  app:
