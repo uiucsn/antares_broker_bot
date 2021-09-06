@@ -1,12 +1,12 @@
 import asyncio
 from typing import Set
 
-from sqlalchemy import engine, select
+from sqlalchemy import and_, engine, exists, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 from antares_broker_bot.config import SQL_HOSTNAME, SQL_USERNAME, SQL_DATABASE, SQL_PASSWORD
-from .tables import Base, User
+from .tables import Base, Locus, Topic, User
 
 
 class DbIsNotStarted(RuntimeError):
@@ -56,10 +56,21 @@ class Db:
 
     async def add_user_by_id(self, user_id: int):
         self.check_started()
+        async with AsyncSession(self.engine) as session, session.begin():
+            await session.merge(User(user_id=user_id))
+
+    async def add_locus_if_not_exists(self, user_id: int, topic_name: str, locus_id: str) -> bool:
         async with AsyncSession(self.engine) as session:
-            exists = (await session.execute(
-                select(User).where(User.user_id == user_id)
-            )).scalar() is not None
-            if not exists:
-                with session.begin():
-                    session.add(User(user_id=user_id))
+            topic = (await session.execute(select(Topic).where(and_(
+                Topic.user_id == user_id,
+                Topic.topic == topic_name,
+            )))).scalar()
+            row_exists = (await session.execute(exists().where(and_(
+                Locus.topic_id == topic.id,
+                Locus.locus_id == locus_id,
+            )))).scalar()
+            if row_exists:
+                return False
+            async with session.begin():
+                session.add(Locus(topic_id=topic.id, locus_id=locus_id))
+        return True

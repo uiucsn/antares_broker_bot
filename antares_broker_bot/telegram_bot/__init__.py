@@ -18,8 +18,8 @@ class TelegramBot:
         self.dispatcher.register_message_handler(self.start_cmd, commands=['start'])
 
     def run(self, loop: asyncio.AbstractEventLoop, queues: Dict[str, AioQueue]):
-        for queue in queues.values():
-            loop.create_task(self.broadcast_alerts(queue))
+        for topic, queue in queues.items():
+            loop.create_task(self.broadcast_alerts(topic=topic, queue=queue))
 
         executor.start_polling(
             self.dispatcher,
@@ -34,7 +34,7 @@ class TelegramBot:
     async def on_shutdown(self, _dp):
         await self.db.on_shutdown()
 
-    async def broadcast_alerts(self, queue: AioQueue) -> None:
+    async def broadcast_alerts(self, topic: str, queue: AioQueue) -> None:
         count = 0
         while True:
             locus = await queue.coro_get()
@@ -44,8 +44,9 @@ class TelegramBot:
                 continue
             msg = await compose_message_from_locus(locus)
             for user_id in users:
-                if await self.send_message(user_id, msg):
-                    count += 1
+                if await self.db.add_locus_if_not_exists(user_id=user_id, topic_name=topic, locus_id=locus.locus_id):
+                    if await self.send_message(user_id, msg):
+                        count += 1
 
     async def start_cmd(self, message: types.Message):
         await self.db.add_user_by_id(message.from_user.id)  # we believe Db is started at this point
