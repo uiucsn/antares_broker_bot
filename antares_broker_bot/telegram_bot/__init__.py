@@ -1,31 +1,66 @@
 import asyncio
+from typing import Dict
 
-from aiogram import Bot, Dispatcher, exceptions, types
+from aiogram import Bot, Dispatcher, exceptions, executor, types
+from aioprocessing import AioQueue
 
 from antares_broker_bot.config import TELEGRAM_API_TOKEN
-from antares_broker_bot.db import USERS
+from antares_broker_bot.db import Db, DbIsNotStarted
+from antares_broker_bot.locus import compose_message_from_locus
 
 
-BOT = Bot(token=TELEGRAM_API_TOKEN)
-DP = Dispatcher(BOT)
+class TelegramBot:
+    def __init__(self, db: Db):
+        self.bot = Bot(token=TELEGRAM_API_TOKEN)
+        self.dispatcher = Dispatcher(self.bot)
+        self.db = db
 
+        self.dispatcher.register_message_handler(self.start_cmd, commands=['start'])
 
-@DP.message_handler(commands=["start"])
-async def send_welcome(message: types.Message):
-    USERS.add(message.from_user.id)
-    await message.answer('Hello, ANTARES alert bot is starting to send you alerts')
+    def run(self, loop: asyncio.AbstractEventLoop, queues: Dict[str, AioQueue]):
+        for queue in queues.values():
+            loop.create_task(self.broadcast_alerts(queue))
 
+        executor.start_polling(
+            self.dispatcher,
+            loop=loop,
+            on_startup=self.on_startup,
+            on_shutdown=self.on_shutdown,
+        )
 
-async def send_message(user_id: int, text: str, disable_notification: bool = True) -> bool:
-    try:
-        await BOT.send_message(user_id, text, disable_notification=disable_notification)
-        return True
-    except exceptions.BotBlocked:
-        return False
-    except exceptions.ChatNotFound:
-        return False
-    except exceptions.RetryAfter as e:
-        await asyncio.sleep(e.timeout)
-        return await send_message(user_id, text)
-    except exceptions.UserDeactivated:
-        return False
+    async def on_startup(self, _dp):
+        await self.db.on_startup()
+
+    async def on_shutdown(self, _dp):
+        await self.db.on_shutdown()
+
+    async def broadcast_alerts(self, queue: AioQueue) -> None:
+        count = 0
+        while True:
+            locus = await queue.coro_get()
+            try:
+                users = await self.db.user_ids()
+            except DbIsNotStarted:
+                continue
+            msg = await compose_message_from_locus(locus)
+            for user_id in users:
+                if await self.send_message(user_id, msg):
+                    count += 1
+
+    async def start_cmd(self, message: types.Message):
+        await self.db.add_user_by_id(message.from_user.id)  # we believe Db is started at this point
+        await message.answer('Hello, ANTARES alert bot is starting to send you alerts')
+
+    async def send_message(self, user_id: int, text: str, disable_notification: bool = True) -> bool:
+        try:
+            await self.bot.send_message(user_id, text, disable_notification=disable_notification)
+            return True
+        except exceptions.BotBlocked:
+            return False
+        except exceptions.ChatNotFound:
+            return False
+        except exceptions.RetryAfter as e:
+            await asyncio.sleep(e.timeout)
+            return await self.send_message(user_id, text)
+        except exceptions.UserDeactivated:
+            return False

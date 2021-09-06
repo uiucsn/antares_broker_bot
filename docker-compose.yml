@@ -5,6 +5,10 @@ services:
     build: .
     env_file:
       - secrets.env # TELEGRAM_API_TOKEN, ANTARES_API_KEY, ANTARES_API_SECRET
+    depends_on:
+      - antares_broker_bot_sql
+    networks:
+      - app
     restart: always
 
   antares_broker_bot_sql:
