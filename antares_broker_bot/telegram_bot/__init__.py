@@ -50,11 +50,17 @@ class TelegramBot:
 
     async def start_cmd(self, message: types.Message):
         await self.db.add_user_by_id(message.from_user.id)  # we believe Db is started at this point
+        await self.db.add_user_id_topic(message.from_user.id, 'iso_forest_anomaly_detection')
         await message.answer('Hello, ANTARES alert bot is starting to send you alerts')
 
     async def send_message(self, user_id: int, text: str, disable_notification: bool = True) -> bool:
         try:
-            await self.bot.send_message(user_id, text, disable_notification=disable_notification)
+            await self.bot.send_message(
+                user_id,
+                text,
+                disable_notification=disable_notification,
+                parse_mode="MarkdownV2"
+            )
             return True
         except exceptions.BotBlocked:
             return False

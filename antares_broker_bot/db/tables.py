@@ -6,7 +6,7 @@ Base = declarative_base()
 
 
 class User(Base):
-    __tablename__ = 'user'
+    __tablename__ = 'tg_user'
 
     user_id = Column(Integer, primary_key=True)
     topics = relationship('Topic', back_populates='user')
