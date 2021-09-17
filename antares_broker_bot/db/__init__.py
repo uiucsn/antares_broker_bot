@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Set
 
 from sqlalchemy import and_, engine, exists, select
@@ -57,32 +58,33 @@ class Db:
     async def add_user_by_id(self, user_id: int):
         self.check_started()
         async with AsyncSession(self.engine) as session, session.begin():
-            await session.merge(User(user_id=user_id))
+            session.merge(User(user_id=user_id))
 
     async def add_user_id_topic(self, user_id: int, topic_name: str):
         self.check_started()
-        async with AsyncSession(self.engine) as session:
+        async with AsyncSession(self.engine) as session, session.begin():
             topic = (await session.execute(select(Topic).where(and_(
                 Topic.user_id == user_id,
                 Topic.topic == topic_name,
             )))).scalar()
             if topic is not None:
                 return
-            async with session.begin():
-                await session.add(Topic(User(user_id=user_id), topic=topic_name))
+            session.add(Topic(user=User(user_id=user_id), topic=topic_name))
 
     async def add_locus_if_not_exists(self, user_id: int, topic_name: str, locus_id: str) -> bool:
-        async with AsyncSession(self.engine) as session:
+        async with AsyncSession(self.engine) as session, session.begin():
             topic = (await session.execute(select(Topic).where(and_(
                 Topic.user_id == user_id,
                 Topic.topic == topic_name,
             )))).scalar()
+            if topic is None:
+                logging.warning(f'Topic {topic_name} is not found for user {user_id}')
+                return False
             locus = (await session.execute(select(Locus).where(and_(
                 Locus.topic_id == topic.id,
                 Locus.locus_id == locus_id,
             )))).scalar()
             if locus is not None:
                 return False
-            async with session.begin():
-                await session.add(Locus(topic_id=topic.id, locus_id=locus_id))
+            session.add(Locus(topic_id=topic.id, locus_id=locus_id))
         return True
