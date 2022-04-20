@@ -1,5 +1,5 @@
 from aiogram.utils.markdown import escape_md
-from antares_client._api.models import Locus
+from antares_client.models import Locus
 from prettytable import PrettyTable
 
 

@@ -3,7 +3,7 @@ from typing import Generator
 
 from aioprocessing import AioQueue
 from antares_client import StreamingClient
-from antares_client._api.models import Locus
+from antares_client.models import Locus
 
 from antares_broker_bot.config import ANTARES_API_KEY, ANTARES_API_SECRET
 
