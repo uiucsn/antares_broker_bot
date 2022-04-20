@@ -14,10 +14,13 @@ class TelegramBot:
         self.bot = Bot(token=TELEGRAM_API_TOKEN)
         self.dispatcher = Dispatcher(self.bot)
         self.db = db
+        self.loop = None
 
         self.dispatcher.register_message_handler(self.start_cmd, commands=['start'])
 
     def run(self, loop: asyncio.AbstractEventLoop, queues: Dict[str, AioQueue]):
+        self.loop = loop
+
         for topic, queue in queues.items():
             loop.create_task(self.broadcast_alerts(topic=topic, queue=queue))
 
@@ -37,7 +40,7 @@ class TelegramBot:
     async def broadcast_alerts(self, topic: str, queue: AioQueue) -> None:
         count = 0
         while True:
-            locus = await queue.coro_get()
+            locus = await queue.coro_get(loop=self.loop)
             try:
                 users = await self.db.user_ids()
             except DbIsNotStarted:

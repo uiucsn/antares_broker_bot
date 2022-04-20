@@ -5,6 +5,7 @@ from typing import Set
 from sqlalchemy import and_, engine, exists, select
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.pool import NullPool
 
 from antares_broker_bot.config import SQL_HOSTNAME, SQL_USERNAME, SQL_DATABASE, SQL_PASSWORD
 from .tables import Base, Locus, Topic, User
@@ -24,7 +25,7 @@ class Db:
                 host=SQL_HOSTNAME,
                 database=SQL_DATABASE,
             )
-        self.engine = create_async_engine(url, echo=echo)
+        self.engine = create_async_engine(url, echo=echo, poolclass=NullPool)
         self.started = False
 
     async def wait_db_is_ready(self):
