@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Dict
 
 from aiogram import Bot, Dispatcher, exceptions, executor, types
@@ -40,11 +41,13 @@ class TelegramBot:
     async def broadcast_alerts(self, topic: str, queue: AioQueue) -> None:
         count = 0
         while True:
-            locus = await queue.coro_get(loop=self.loop)
             try:
                 users = await self.db.user_ids()
             except DbIsNotStarted:
+                logging.warning("DB is not started but should be")
+                await asyncio.sleep(0.1)
                 continue
+            locus = await queue.coro_get(loop=self.loop)
             msg = await compose_message_from_locus(locus)
             for user_id in users:
                 if await self.db.add_locus_if_not_exists(user_id=user_id, topic_name=topic, locus_id=locus.locus_id):

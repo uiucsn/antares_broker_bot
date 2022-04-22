@@ -33,8 +33,10 @@ class Db:
             try:
                 async with self.engine.begin():
                     pass
+                logging.info('DB is ready')
                 return
             except DBAPIError:
+                logging.info('DB is not ready yet')
                 await asyncio.sleep(0.1)
 
     async def on_startup(self):
