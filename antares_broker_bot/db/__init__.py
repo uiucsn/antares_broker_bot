@@ -59,7 +59,7 @@ class Db:
     async def add_user_by_id(self, user_id: int):
         self.check_started()
         async with AsyncSession(self.engine) as session, session.begin():
-            session.merge(User(user_id=user_id))
+            await session.merge(User(user_id=user_id))
 
     async def add_user_id_topic(self, user_id: int, topic_name: str):
         self.check_started()
