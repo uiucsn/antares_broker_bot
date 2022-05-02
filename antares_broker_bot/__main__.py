@@ -24,6 +24,7 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     loop = uvloop.new_event_loop()
+    set_event_loop(loop)
 
     db = Db(echo=True)
 
