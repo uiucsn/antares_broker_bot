@@ -40,9 +40,9 @@ class Db:
                 await asyncio.sleep(0.1)
 
     async def on_startup(self):
-        self.started = True
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        self.started = True
 
     async def on_shutdown(self):
         await self.engine.dispose()
@@ -72,7 +72,7 @@ class Db:
             )))).scalar()
             if topic is not None:
                 return
-            session.add(Topic(user=User(user_id=user_id), topic=topic_name))
+            await session.merge(Topic(user=User(user_id=user_id), topic=topic_name))
 
     async def add_locus_if_not_exists(self, user_id: int, topic_name: str, locus_id: str) -> bool:
         async with AsyncSession(self.engine) as session, session.begin():
@@ -88,6 +88,7 @@ class Db:
                 Locus.locus_id == locus_id,
             )))).scalar()
             if locus is not None:
+                logging.info(f'Locus {locus} was already sent')
                 return False
             session.add(Locus(topic_id=topic.id, locus_id=locus_id))
         return True

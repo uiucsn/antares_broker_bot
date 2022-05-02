@@ -1,5 +1,5 @@
 import logging
-import time
+from asyncio import set_event_loop
 from typing import Dict, Iterable, Mapping
 
 import uvloop
@@ -34,7 +34,7 @@ def main():
 
     loop.run_until_complete(db.wait_db_is_ready())
 
-    bot.run(loop=loop, queues=queues)
+    tasks = bot.run(loop=loop, queues=queues)
 
 
 if __name__ == '__main__':
